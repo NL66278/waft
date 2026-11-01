@@ -14,7 +14,7 @@ personal details here.** Secrets and the `pass` entry path live in
 - **Version:** Odoo 19.0 (final)
 - **Database:** `odooedprd19`
 - **Purpose:** Administratie, CRM, project management
-- **Source:** https://github.com/odoo/odoo
+- **Source:** <https://github.com/odoo/odoo>
 - **Type:** Eigen self-hosted instance
 - **Local dev:** this workspace, database `odooeddem19`,
   `http://127.0.0.1:8069`

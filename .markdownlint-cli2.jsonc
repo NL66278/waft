@@ -1,0 +1,23 @@
+// markdownlint-cli2 configuration.
+// See https://github.com/DavidAnson/markdownlint-cli2 for options.
+{
+  "config": {
+    "default": true,
+    // MD013: line length — we wrap to 88 by convention (see AGENTS.md),
+    // but tables, fenced code blocks, and URLs legitimately exceed it,
+    // so disable the rule and rely on the manual convention.
+    "MD013": false,
+    // MD060: table column style — pedantic about spacing in the separator
+    // row. Our tables use standard GitHub markdown (|---|---|) which
+    // renders fine; disable to avoid churn.
+    "MD060": false,
+    // MD041: first line in a file should be a top-level heading — our
+    // markdown files start with a single H1, so this stays enabled.
+    "MD041": true,
+    // MD024: no duplicate headings — allow siblings (e.g. multiple
+    // "### Examples" under different H2s).
+    "MD024": { "siblings_only": true },
+    // MD033: no inline HTML — allow details/summary and <br> in docs.
+    "MD033": { "allowed_elements": ["details", "summary", "br"] }
+  }
+}

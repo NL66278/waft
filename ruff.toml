@@ -1,0 +1,15 @@
+# Ruff configuration for the Open Eye Development Odoo 19 workspace.
+# Used by pre-commit (see .pre-commit-config.yaml) and runnable directly:
+#   uvx ruff check scripts/
+#   uvx ruff format scripts/
+
+line-length = 88
+target-version = "py313"
+
+[lint]
+# E/W = pycodestyle (style), F = pyflakes (bugs), I = isort (import order),
+# UP = pyupgrade (modernize syntax), B = flake8-bugbear (common pitfalls).
+select = ["E", "W", "F", "I", "UP", "B"]
+
+[lint.isort]
+known-first-party = ["odoo_client"]

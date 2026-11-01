@@ -18,18 +18,20 @@ Auth model (the gotcha — see repo TOOLS.md):
   endpoint is interactive and only checks the user's real password). Instead,
   POST /jsonrpc with service=common, method=authenticate, passing the API key
   as the password arg. Returns the uid. Then call model methods via
-  service=object, method=execute_kw with [db, uid, api_key, model, method, args, kwargs].
+  service=object, method=execute_kw with
+  [db, uid, api_key, model, method, args, kwargs].
 
 Usage as a library:
     from odoo_client import OdooClient
-    client = OdooClient.connect()          # reads env + gets key from pass
-    partners = client.search_read("res.partner", [["is_company", "=", True]], ["id", "name"])
+    client = OdooClient.connect()        # reads env + gets key from pass
+    partners = client.search_read(
+        "res.partner", [["is_company", "=", True]], ["id", "name"]
+    )
 
 Usage from CLI:
-    python3 scripts/odoo_client.py           # self-test (auth + read own user + partner count)
+    python3 scripts/odoo_client.py        # self-test (auth + partner count)
     python3 scripts/odoo_client.py --quiet   # authenticate only, print uid
 """
-from __future__ import annotations
 
 import json
 import os
@@ -47,7 +49,11 @@ class OdooError(RuntimeError):
 # --- .env loading -----------------------------------------------------------
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-_ENV_FILES = [_REPO_ROOT / ".env-default", _REPO_ROOT / ".env-shared", _REPO_ROOT / ".env-secret"]
+_ENV_FILES = [
+    _REPO_ROOT / ".env-default",
+    _REPO_ROOT / ".env-shared",
+    _REPO_ROOT / ".env-secret",
+]
 
 
 def _load_env_files() -> None:
@@ -58,6 +64,9 @@ def _load_env_files() -> None:
         from dotenv import dotenv_values  # type: ignore
     except ImportError:
         # Minimal fallback parser: KEY=VALUE per line, strips comments/quotes.
+        # Handles inline comments after quoted values: KEY="VAL"  # comment
+        import re as _re
+
         def dotenv_values(path: Path):
             vals = {}
             if not path.is_file():
@@ -67,9 +76,18 @@ def _load_env_files() -> None:
                 if not line or line.startswith("#") or "=" not in line:
                     continue
                 k, _, v = line.partition("=")
-                k, v = k.strip(), v.strip()
-                if v and len(v) >= 2 and v[0] in "\"'" and v[-1] == v[0]:
-                    v = v[1:-1]
+                k = k.strip()
+                v = v.strip()
+                # Quoted value: take content between the quotes, ignore the rest
+                # (handles inline comments after a quoted value).
+                if v and v[0] in "\"'":
+                    quote = v[0]
+                    end = v.find(quote, 1)
+                    if end != -1:
+                        v = v[1:end]
+                # Unquoted value: strip an inline comment starting at " #"
+                else:
+                    v = _re.sub(r"\s+#.*$", "", v).strip()
                 vals[k] = v
             return vals
 
@@ -80,14 +98,21 @@ def _load_env_files() -> None:
 
 # --- API key retrieval ------------------------------------------------------
 
+
 def _api_key_from_pass(pass_path: str) -> str:
     """Read the API key from the given `pass` entry (first line only)."""
     try:
         out = subprocess.run(
-            ["pass", pass_path], check=True, capture_output=True, text=True, timeout=10,
+            ["pass", pass_path],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
     except FileNotFoundError:
-        raise OdooError("`pass` binary not found; install pass or set ODOO_APIKEY to override")
+        raise OdooError(
+            "`pass` binary not found; install pass or set ODOO_APIKEY to override"
+        ) from None
     except subprocess.CalledProcessError as e:
         raise OdooError(f"`pass {pass_path}` failed: {e.stderr.strip() or e}") from None
     key = out.stdout.splitlines()[0].strip() if out.stdout else ""
@@ -112,6 +137,7 @@ def _get_api_key() -> str:
 
 
 # --- client -----------------------------------------------------------------
+
 
 class OdooClient:
     """Stateless JSON-RPC client for Odoo 19 using an API key."""
@@ -145,14 +171,19 @@ class OdooClient:
         return cls.from_apikey(db, login, api_key, base=base, timeout=timeout)
 
     @classmethod
-    def from_apikey(cls, db: str, login: str, api_key: str, *, base: str, timeout: int = 30) -> "OdooClient":
+    def from_apikey(
+        cls, db: str, login: str, api_key: str, *, base: str, timeout: int = 30
+    ) -> "OdooClient":
         """Authenticate with an API key and return a ready-to-use client."""
         tmp = cls(base, db, 0, api_key, timeout=timeout)
-        res = tmp._call("/jsonrpc", {
-            "service": "common",
-            "method": "authenticate",
-            "args": [db, login, api_key, {}],
-        })
+        res = tmp._call(
+            "/jsonrpc",
+            {
+                "service": "common",
+                "method": "authenticate",
+                "args": [db, login, api_key, {}],
+            },
+        )
         uid = res.get("result")
         if not isinstance(uid, int) or not uid:
             raise OdooError(f"Authentication failed: {res}")
@@ -163,7 +194,8 @@ class OdooClient:
         payload = {"jsonrpc": "2.0", "method": "call", "id": self._id, "params": params}
         data = json.dumps(payload).encode()
         req = urllib.request.Request(
-            self.base + endpoint, data=data,
+            self.base + endpoint,
+            data=data,
             headers={"Content-Type": "application/json"},
         )
         try:
@@ -173,36 +205,65 @@ class OdooClient:
             body = e.read().decode(errors="replace")[:500]
             raise OdooError(f"HTTP {e.code} from {endpoint}: {body}") from None
 
-    def execute(self, model: str, method: str, args: list | None = None, kwargs: dict | None = None):
+    def execute(
+        self,
+        model: str,
+        method: str,
+        args: list | None = None,
+        kwargs: dict | None = None,
+    ):
         """Call `execute_kw` on a model method. Raises OdooError on server error."""
-        res = self._call("/jsonrpc", {
-            "service": "object",
-            "method": "execute_kw",
-            "args": [self.db, self.uid, self.api_key, model, method, args or [], kwargs or {}],
-        })
+        res = self._call(
+            "/jsonrpc",
+            {
+                "service": "object",
+                "method": "execute_kw",
+                "args": [
+                    self.db,
+                    self.uid,
+                    self.api_key,
+                    model,
+                    method,
+                    args or [],
+                    kwargs or {},
+                ],
+            },
+        )
         if res.get("error"):
             err = res["error"]
-            raise OdooError(err.get("data", {}).get("message") or err.get("message") or err)
+            raise OdooError(
+                err.get("data", {}).get("message") or err.get("message") or err
+            )
         return res.get("result")
 
     # Convenience wrappers ---------------------------------------------------
 
     def search(self, model, domain, *, limit=None, offset=0, order=None):
         kwargs = {}
-        if limit is not None: kwargs["limit"] = limit
-        if offset: kwargs["offset"] = offset
-        if order: kwargs["order"] = order
+        if limit is not None:
+            kwargs["limit"] = limit
+        if offset:
+            kwargs["offset"] = offset
+        if order:
+            kwargs["order"] = order
         return self.execute(model, "search", args=[domain], kwargs=kwargs)
 
     def search_count(self, model, domain):
         return self.execute(model, "search_count", args=[domain])
 
-    def search_read(self, model, domain, fields=None, *, limit=None, offset=0, order=None):
+    def search_read(
+        self, model, domain, fields=None, *, limit=None, offset=0, order=None
+    ):
         kwargs = {}
-        if limit is not None: kwargs["limit"] = limit
-        if offset: kwargs["offset"] = offset
-        if order: kwargs["order"] = order
-        return self.execute(model, "search_read", args=[domain, fields or []], kwargs=kwargs)
+        if limit is not None:
+            kwargs["limit"] = limit
+        if offset:
+            kwargs["offset"] = offset
+        if order:
+            kwargs["order"] = order
+        return self.execute(
+            model, "search_read", args=[domain, fields or []], kwargs=kwargs
+        )
 
     def read(self, model, ids, fields=None):
         return self.execute(model, "read", args=[ids, fields or []])
@@ -219,6 +280,7 @@ class OdooClient:
 
 # --- CLI / self-test --------------------------------------------------------
 
+
 def _self_test(client: OdooClient) -> None:
     me = client.read("res.users", [client.uid], ["id", "login", "name", "email"])
     print(f"Authenticated: uid={client.uid} (db={client.db})")
@@ -226,7 +288,10 @@ def _self_test(client: OdooClient) -> None:
     count = client.search_count("res.partner", [])
     print(f"res.partner count: {count}")
     mods = client.search_read(
-        "ir.module.module", [("state", "=", "installed")], ["name", "state"], limit=5,
+        "ir.module.module",
+        [("state", "=", "installed")],
+        ["name", "state"],
+        limit=5,
     )
     print("Sample installed modules:", mods)
 

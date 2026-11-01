@@ -25,6 +25,9 @@ auth-method gotcha for Odoo 19 API keys.
 | `scripts/` | Helper scripts (see `scripts/odoo_client.py`) |
 | `.env-default` | Default vars (template — do not edit; override in `.env-shared`/`.env-secret`) |
 | `.env-secret` | Secrets — gitignored, never committed |
+| `.pre-commit-config.yaml` | Pre-commit hook definitions (one-time: `uvx pre-commit install`) |
+| `.markdownlint-cli2.jsonc` | markdownlint config (disables MD013/MD060, see file) |
+| `ruff.toml` | ruff lint + format config (line-length 88, target py313) |
 | `odoo-service` | Start the local Odoo server (foreground) |
 | `run` | Start a one-off Odoo process (foreground) |
 | `shell` | Open an interactive Odoo shell |
@@ -82,3 +85,19 @@ Additional guards I hold myself to:
   within 88 chars. Exceptions: tables (cells may exceed), fenced code
   blocks, and URLs/code identifiers that cannot be broken. Apply the same
   limit to commit messages unless a project style dictates otherwise.
+- **Python: line length 88, ruff for lint + format.** Config in `ruff.toml`.
+  Run manually: `uvx ruff check scripts/` and `uvx ruff format scripts/`.
+  Target Python 3.13 (matches the venv). Rule set: E/W/F/I/UP/B (see
+  `ruff.toml`). Don't add `from __future__ import annotations` — it's
+  cargo-cult on 3.13.
+- **Pre-commit hooks enforce the above.** Config in `.pre-commit-config.yaml`
+  (and `.markdownlint-cli2.jsonc` for markdown). One-time setup:
+  `uvx pre-commit install`. Run on all files without committing:
+  `uvx pre-commit run --all-files`. Hooks modify staged files when autofixing
+  but never commit — the user remains the one who runs `git commit`.
+- **Shell scripts with a shebang must be executable.** Both filesystem
+  (`chmod +x`) and git index (`git update-index --chmod=+x` → mode 100755).
+  The `check-shebang-scripts-are-executable` hook enforces this.
+- **Excluded from linting:** symlinked scripts pointing into gitignored
+  `waftlib/` (see `exclude:` in `.pre-commit-config.yaml`). We don't own
+  that code.
