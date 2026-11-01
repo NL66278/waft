@@ -236,6 +236,48 @@ class OdooClient:
             )
         return res.get("result")
 
+    def call_route(self, route: str, params: dict):
+        """Call a JSON-RPC controller route with Bearer API-key auth.
+
+        POSTs to ``self.base + route`` with an ``Authorization: Bearer
+        <api_key>`` header and a JSON-RPC 2.0 envelope (``method: call``).
+        The route must be declared with ``auth='bearer'`` and
+        ``type='jsonrpc'``; Odoo 19 validates the bearer token via
+        res.users.apikeys (scope 'rpc') — the same scope the JSON-RPC
+        execute_kw endpoint uses — so a single API key works for both.
+
+        Returns the controller's result, or raises OdooError on HTTP or
+        JSON-RPC errors.
+        """
+        self._id += 1
+        payload = {
+            "jsonrpc": "2.0",
+            "method": "call",
+            "id": self._id,
+            "params": params,
+        }
+        data = json.dumps(payload).encode()
+        req = urllib.request.Request(
+            self.base + route,
+            data=data,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_key}",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as r:
+                res = json.load(r)
+        except urllib.error.HTTPError as e:
+            body = e.read().decode(errors="replace")[:500]
+            raise OdooError(f"HTTP {e.code} from {route}: {body}") from None
+        if res.get("error"):
+            err = res["error"]
+            raise OdooError(
+                err.get("data", {}).get("message") or err.get("message") or err
+            )
+        return res.get("result")
+
     # Convenience wrappers ---------------------------------------------------
 
     def search(self, model, domain, *, limit=None, offset=0, order=None):

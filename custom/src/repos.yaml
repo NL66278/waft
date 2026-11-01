@@ -8,6 +8,18 @@ odoo:
   merges:
     - origin ${ODOO_VERSION}
 
+# Customer repository
+openeyedev:
+  defaults:
+    depth: ${WAFT_DEPTH_MERGE}
+  remotes:
+    origin: git@forgejo.openeyedev.eu:OpenEyePrivate/OpenEyeDevPrivateAddons.git
+  target: origin ${ODOO_VERSION}
+  merges:
+    - origin ${ODOO_VERSION}
+
+# OCA Repositories
+
 OCA/account-financial-reporting:
   defaults:
     depth: ${WAFT_DEPTH_DEFAULT}

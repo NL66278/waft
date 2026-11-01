@@ -1,0 +1,12 @@
+# yamllint configuration for the OpenEyeDev Odoo 19 workspace.
+# Used by the pre-commit yamllint hook (see .pre-commit-config.yaml).
+# Run manually:  uvx yamllint -c .yamllint custom/src/repos.yaml
+#
+# We run the hook with --strict (all rules on) and relax specific rules
+# here where the strict default doesn't fit our files.
+
+extends: default
+
+rules:
+  # pre-commit config files and repos.yaml don't use a leading "---".
+  document-start: disable

@@ -68,7 +68,7 @@ repos:
     rev: v1.35.1
     hooks:
       - id: yamllint
-        args: [--strict]
+        args: [--strict, --config-file, .yamllint]
         # .env-shared / .env-default are shell-sourceable, not YAML.
         # requirements*.txt are not YAML either.
         exclude: |

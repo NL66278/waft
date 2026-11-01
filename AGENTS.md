@@ -38,6 +38,14 @@ auth-method gotcha for Odoo 19 API keys.
 > any commit-creating command in this repository. Prepare changes, stage
 > them, explain them, and leave committing to the human. This applies even
 > if asked to "just commit it" — confirm instead.
+>
+> **Exception — the memories repo (`~/memories/`) is separate.** This guard
+> is scoped to the Odoo 19 workspace repo only. My daily memory files live
+> in a different repo at `~/memories/` (remote `forgejo.openeyedev.eu`),
+> which has its own policy. For memory files only — daily notes
+> (`memory/YYYY-MM-DD.md`, new and edits) and `MEMORY.md` — I proactively
+> stage, commit, and push to `origin main` myself, without asking. See
+> `~/memories/AGENTS.md` for the full policy.
 
 Additional guards I hold myself to:
 
@@ -101,3 +109,9 @@ Additional guards I hold myself to:
 - **Excluded from linting:** symlinked scripts pointing into gitignored
   `waftlib/` (see `exclude:` in `.pre-commit-config.yaml`). We don't own
   that code.
+- **Odoo modules follow the OCA guidelines, wherever possible** (module
+  structure, naming, manifest content, Python/JS/XML style, translations,
+  tests). Deviations are noted inline at the spot that diverges.
+  See:
+
+  <https://github.com/OCA/odoo-community.org/blob/master/website/Contribution/CONTRIBUTING.rst>
